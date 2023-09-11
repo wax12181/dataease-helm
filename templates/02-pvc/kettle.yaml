@@ -1,0 +1,13 @@
+{{ if (eq .Values.DataEase.engine_mode "cluster")}}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: kettle-data-pvc
+spec:
+  accessModes:
+    - {{.Values.kettle.persistence.accessModes}}
+  resources:
+    requests:
+      storage: {{.Values.kettle.persistence.size}}
+  storageClassName: {{.Values.common.storageClass}}
+{{end}}

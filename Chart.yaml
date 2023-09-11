@@ -1,0 +1,12 @@
+apiVersion: v1
+appVersion: 1.18.10
+description: A Helm chart to deploy DataEase
+home: https://dataease.io
+icon: https://dataease.io/images/logo/favicon.ico
+maintainers:
+- email: anxiang.wu@qingteng.com
+  name: anxiang.wu
+name: dataease
+sources:
+- https://github.com/mfanoffice/dataease-helm
+version: 1.18.10

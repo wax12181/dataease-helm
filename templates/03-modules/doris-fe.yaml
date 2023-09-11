@@ -1,0 +1,68 @@
+{{if and (eq .Values.DataEase.engine_mode "cluster") (.Values.doris_fe.enable)}}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{.Values.doris_fe.host}}
+  labels:
+    app: {{.Values.doris_fe.host}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{.Values.doris_fe.host}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.doris_fe.host}}
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      #nodeName: worker-1
+      containers:
+        - name: {{.Values.doris_fe.host}}
+          env:
+          - name: FE_IPADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          image: {{.Values.doris_fe.imagePrefix}}{{.Values.doris_fe.image}}:{{.Values.doris_fe.imageTag}}
+          command: [ "/bin/bash", "-ce", "/opt/doris/bin/start_fe.sh --daemon;tail -f /dev/null" ]
+          volumeMounts:
+          - mountPath: /opt/doris/doris-meta
+            name: opt-fe-doris-meta
+          - mountPath: /opt/doris/conf/fe.conf
+            name: opt-doris-fe-config
+            subPath: fe.conf
+          livenessProbe:
+            httpGet:
+              path: /api/bootstrap
+              port: 8030
+            initialDelaySeconds: 300
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3      
+          ports:
+            - containerPort: 8030
+              protocol: TCP
+            - containerPort: 9020
+              protocol: TCP
+            - containerPort: 9030
+              protocol: TCP
+            - containerPort: 9010
+              protocol: TCP
+          resources:
+            limits:
+              cpu: {{.Values.doris_be.resourceLimits.cpu}}
+              memory: {{.Values.doris_be.resourceLimits.memory}}
+            requests:
+              cpu: 200m
+              memory: 1G
+      volumes:
+      - name: opt-fe-doris-meta
+        persistentVolumeClaim:
+          claimName: doris-fe-pvc
+      - name: opt-doris-fe-config
+        configMap:
+          name: fe-config
+    
+{{end}}

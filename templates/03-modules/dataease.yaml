@@ -1,0 +1,107 @@
+{{if .Values.DataEase.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.common.dataease.host}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{.Values.common.dataease.host}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.common.dataease.host}}
+    spec:
+      containers:
+        - name: dataease
+          image: {{.Values.common.imagePrefix}}{{.Values.DataEase.image}}:{{.Values.DataEase.imageTag}}
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: {{.Values.DataEase.resourceLimits.cpu}}
+              memory: {{.Values.DataEase.resourceLimits.memory}}
+            requests:
+              memory: 512Mi
+              cpu: 0.4
+          env:
+            - name: QT_MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-mongodb
+                  key: mongodb-root-password
+          ports:
+            - name: tcp
+              containerPort: 8081
+          volumeMounts:
+            - mountPath: /opt/dataease/conf/dataease.properties
+              name: opt-dataease-config
+              subPath: dataease.properties
+            - mountPath: /opt/dataease/logs
+              name: opt-dataease-logs
+            - mountPath: /opt/dataease/plugins/thirdpart
+              name: opt-dataease-plugins-thirdpart
+            - mountPath: /opt/dataease/data/kettle
+              name: opt-dataease-data-kettle
+      {{if ne (.Values.common.imagePullSecrets | default "nil") "nil"}}
+      imagePullSecrets:
+        - name: {{.Values.common.imagePullSecrets}}
+      {{ end }}
+      volumes:
+        - name: opt-dataease-config
+          configMap:
+            name: dataease-config
+            defaultMode: 420
+        - name: opt-dataease-logs
+          {{if .Values.logPersistence.enabled}}
+          persistentVolumeClaim:
+            claimName: dataease-logs-pvc
+          {{ else }}
+          emptyDir: {}
+          {{ end }}
+        - name: opt-dataease-plugins-thirdpart
+          {{if .Values.dataPersistence.enabled}}
+          persistentVolumeClaim:
+            claimName: dataease-plugins-thirdpart-pvc
+          {{ else }}
+          emptyDir: {}
+          {{ end }}
+        - name: opt-dataease-data-kettle
+          {{if and (eq .Values.DataEase.engine_mode "cluster")}}
+          persistentVolumeClaim:
+            claimName: kettle-data-pvc
+          {{ else }}
+          emptyDir: {}
+          {{ end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.Values.common.dataease.host}}
+  labels:
+    app: {{.Values.common.dataease.host}}
+spec:
+  sessionAffinity: ClientIP
+  selector:
+    app: {{.Values.common.dataease.host}}
+  ports:
+    - name: http
+      port: 8081
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.Values.common.dataease.nodeport_host}}
+  labels:
+    app: {{.Values.common.dataease.host}}
+spec:
+  type: NodePort
+  selector:
+    app: {{.Values.common.dataease.host}}
+  ports:
+  - port: 8081
+    targetPort: 8081
+    nodePort: {{.Values.common.dataease.nodeport_port}}
+{{end}}

@@ -1,0 +1,59 @@
+{{ if .Values.mongobi.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{.Values.common.mongobi.host}}
+spec:
+  replicas: 1
+  serviceName: {{.Values.common.mongobi.host}}
+  selector:
+    matchLabels:
+      app: {{.Values.common.mongobi.host}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.common.mongobi.host}}
+    spec:
+      containers:
+        - name: {{.Values.common.mongobi.host}}
+          image: {{.Values.common.imagePrefix}}{{.Values.mongobi.image}}:{{.Values.mongobi.imageTag}}
+          imagePullPolicy: {{.Values.common.imagePullPolicy}}
+          resources:
+            limits:
+              cpu: {{.Values.mongobi.resourceLimits.cpu}}
+              memory: {{.Values.mongobi.resourceLimits.memory}}
+            requests:
+              memory: 200Mi
+              cpu: 0.2
+          env:
+            - name: MONGODB_HOST
+              value: mongo-mongodb-headless
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-mongodb
+                  key: mongodb-root-password
+          ports:
+            - name: tcp
+              containerPort: 3307
+      {{if ne (.Values.common.imagePullSecrets | default "nil") "nil"}}
+      imagePullSecrets:
+        - name: {{.Values.common.imagePullSecrets}}
+      {{ end }}
+          
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.Values.common.mongobi.host}}
+  labels:
+    app: {{.Values.common.mongobi.host}}
+spec:
+  clusterIP: None
+  selector:
+    app: {{.Values.common.mongobi.host}}
+  ports:
+    - name: tcp
+      port: 3307
+      protocol: TCP
+{{end}}
